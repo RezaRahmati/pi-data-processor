@@ -63,7 +63,7 @@ dotenv.config();
 
         const csvData = await converter.json2csvAsync(data);
 
-        fs.writeFileSync(`result-${getDate()}.csv`, csvData);
+        fs.writeFileSync(path.join(dir, `result-${getDate()}.csv`), csvData);
     }
     catch (e) {
         console.error("Whoops!", e);
