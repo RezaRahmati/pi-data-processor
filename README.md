@@ -20,7 +20,7 @@ Result will be stored in a file called `output-{data}.csv` in the same folder wh
 
 
 ## ApiKey
-To get the api key please visit cmor.ai
+To get the api key please visit [cmor.ai](https://cmor.ai)
 
 ## InfoTypes
 Here is a complete list of infoTypes
