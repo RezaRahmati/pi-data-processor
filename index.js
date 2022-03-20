@@ -24,6 +24,7 @@ dotenv.config();
             const formData = new FormData();
             formData.append('file', fs.createReadStream(file));
             formData.append('infoTypes', process.env.INFO_TYPES);
+            formData.append('fullFileName', file);
 
             promises.push(
                 fetch(process.env.API_URL, {
@@ -45,13 +46,14 @@ dotenv.config();
             if (r.status === 'fulfilled') {
                 const value = r.value;
                 return {
-                    fileName: value.fileName,
+                    fileName: value.fileName || '',
                     hasAnyPiData: value.stats && value.stats.length > 0,
-                    fullFileName: value.fullFileName,
-                    fileSizeBytes: value.fileSizeBytes,
-                    durationSeconds: value.durationSeconds,
-                    data: (value.data || []).map(d => `${d.infoType}:${d.data}`).join(`;`),
-                    stats: (value.stats || []).map(d => `${d.infoType}:${d.count}`).join(`;`),
+                    fullFileName: value.fullFileName || '',
+                    fileSizeBytes: value.fileSizeBytes || '',
+                    durationSeconds: value.durationSeconds || '',
+                    data: (value.data || []).map(d => `${d.infoType || ''}:${d.data || ''}`).join(`;`) || '',
+                    stats: (value.stats || []).map(d => `${d.infoType || ''}:${d.count || ''}`).join(`;`) || '',
+                    error: '',
                 }
             } else {
                 return {
