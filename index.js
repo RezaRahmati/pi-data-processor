@@ -26,6 +26,7 @@ dotenv.config();
             formData.append('file', fs.createReadStream(file));
             formData.append('infoTypes', process.env.INFO_TYPES);
             formData.append('fullFileName', file);
+            formData.append('likelihood', 'VERY_LIKELY');
 
             promises.push(
                 fetch(process.env.API_URL, {
@@ -54,7 +55,7 @@ dotenv.config();
         const data = responses.map(r => {
             if (r.status === 'fulfilled') {
                 const value = r.value;
-                value.data = (value.data || []).filter(d => d.likelihood == 'VERY_LIKELY');
+
                 return {
                     fileName: value.fileName || '',
                     hasAnyPiData: value.stats && value.stats.length > 0,
