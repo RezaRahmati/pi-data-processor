@@ -20,6 +20,11 @@ dotenv.config();
         for (const file of files) {
 
             await delay(300);
+
+            if (!fs.existsSync(file)) {
+                continue;
+            }
+
             console.log("Processing '%s' started", file);
 
             const formData = new FormData();
