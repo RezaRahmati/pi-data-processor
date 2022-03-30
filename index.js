@@ -13,8 +13,10 @@ dotenv.config();
     try {
         const start = new Date();
         const dir = process.env.FOLDER;
+        const delayMs = +process.env.DELAY;
+
         // Get the files as an array
-        const files = await globby([`${dir}/**/*`]);
+        const files = (await globby([`${dir}/**/*`])).filter(f => !f.includes('cmor-result'));
 
         const promises = [];
 
@@ -24,7 +26,7 @@ dotenv.config();
 
         for (let file of files) {
 
-            await delay(0);
+            await delay(delayMs);
 
             fileIndex += 1;
 
@@ -106,13 +108,13 @@ dotenv.config();
         const dateTime = getDate();
 
         const csvData = await converter.json2csvAsync(data);
-        fs.writeFileSync(path.join(dir, `result-${dateTime}.csv`), csvData);
+        fs.writeFileSync(path.join(dir, `cmor-result-${dateTime}.csv`), csvData);
 
         const allSuccessfulFiles = data.map(d => d.fileName);
         const allUnsuccessfulFiles = files.filter(f => !allSuccessfulFiles.includes(f));
         if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(allUnsuccessfulFiles.map(f => ({ fullFileName: f })));
-            fs.writeFileSync(path.join(dir, `result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
+            fs.writeFileSync(path.join(dir, `cmor-result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
         }
 
         const end = new Date();
