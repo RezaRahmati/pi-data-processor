@@ -19,7 +19,7 @@ dotenv.config();
 
         for (const file of files) {
 
-            await delay(300);
+            await delay(5000);
 
             if (!fs.existsSync(file)) {
                 continue;
@@ -43,7 +43,7 @@ dotenv.config();
                 })
                     .then(res => res.json())
                     .then((res) => {
-                        if (res.stausCode && res.stausCode !== 200) {
+                        if (res.statusCode && res.statusCode !== 200) {
                             console.error(res);
                             return res;
                         }
@@ -85,10 +85,17 @@ dotenv.config();
             }
         });
 
+        const dateTime = getDate();
 
         const csvData = await converter.json2csvAsync(data);
+        fs.writeFileSync(path.join(dir, `result-${dateTime}.csv`), csvData);
 
-        fs.writeFileSync(path.join(dir, `result-${getDate()}.csv`), csvData);
+        const allSuccessfulFiles = data.map(d => d.fileName);
+        const allUnsuccessfulFiles = files.filter(f => !allSuccessfulFiles.includes(f));
+        if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
+            const allUnsuccessfulFilesCsv = await converter.json2csvAsync(allUnsuccessfulFiles.map(f => ({ fullFileName: f })));
+            fs.writeFileSync(path.join(dir, `result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
+        }
     }
     catch (e) {
         console.error("Whoops!", e);
