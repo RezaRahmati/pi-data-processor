@@ -19,6 +19,7 @@ dotenv.config();
 
         for (const file of files) {
 
+            await delay(300);
             console.log("Processing '%s' started", file);
 
             const formData = new FormData();
@@ -33,10 +34,18 @@ dotenv.config();
                         "api-key": process.env.API_KEY,
                     },
                     body: formData
-                }).then(res => res.json()).then((res) => {
-                    console.log("Processing '%s' done", res.fileName);
-                    return res;
                 })
+                    .then(res => res.json())
+                    .then((res) => {
+                        if (res.stausCode && res.stausCode !== 200) {
+                            console.error(res);
+                            return res;
+                        }
+                        else {
+                            console.log("Processing '%s' done", res.fileName);
+                            return res;
+                        }
+                    })
             );
 
         }
@@ -45,6 +54,7 @@ dotenv.config();
         const data = responses.map(r => {
             if (r.status === 'fulfilled') {
                 const value = r.value;
+                value.data = (value.data || []).filter(d => d.likelihood == 'VERY_LIKELY');
                 return {
                     fileName: value.fileName || '',
                     hasAnyPiData: value.stats && value.stats.length > 0,
@@ -77,3 +87,6 @@ const getDate = () => {
     return new Date().toLocaleString().replace(/[T,]/gi, '').replace(/[\/: ]/gi, '-');
 }
 
+const delay = (ms) => {
+    return new Promise((resolve, reject) => setTimeout(resolve, ms));
+}
