@@ -11,21 +11,28 @@ dotenv.config();
 (async () => {
 
     try {
+        const start = new Date();
         const dir = process.env.FOLDER;
         // Get the files as an array
         const files = await globby([`${dir}/**/*`]);
 
         const promises = [];
 
-        for (const file of files) {
+        let fileIndex = 0;
+        let processedCount = 0;
+        let filesCount = files.length;
 
-            await delay(5000);
+        for (let file of files) {
+
+            await delay(0);
+
+            fileIndex += 1;
 
             if (!fs.existsSync(file)) {
                 continue;
             }
 
-            console.log("Processing '%s' started", file);
+            console.log(`Processing ${file} started. ${fileIndex} of ${filesCount}`);
 
             const formData = new FormData();
             formData.append('file', fs.createReadStream(file));
@@ -41,16 +48,27 @@ dotenv.config();
                     },
                     body: formData
                 })
-                    .then(res => res.json())
                     .then((res) => {
-                        if (res.statusCode && res.statusCode !== 200) {
-                            console.error(res);
-                            return res;
+                        processedCount += 1;
+                        if (!res.ok) {
+                            try {
+                                return res.json();
+                            } catch (err) {
+                                console.error(res);
+                                throw new Error(res)
+                            }
                         }
-                        else {
-                            console.log("Processing '%s' done", res.fileName);
-                            return res;
+
+                        return res.json();
+                    })
+                    .then((res) => {
+                        if (res.fileName) {
+                            console.log(`Processing ${res.fileName} done. ${processedCount} of ${filesCount}`);
+                        } else {
+                            console.error(`Error Processing ${file}. ${processedCount} of ${filesCount}`, res);
                         }
+
+                        return res;
                     })
             );
 
@@ -96,6 +114,10 @@ dotenv.config();
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(allUnsuccessfulFiles.map(f => ({ fullFileName: f })));
             fs.writeFileSync(path.join(dir, `result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
         }
+
+        const end = new Date();
+
+        console.log(`Processing ${filesCount} files done in ${(end - start) / 1000}s`)
     }
     catch (e) {
         console.error("Whoops!", e);
