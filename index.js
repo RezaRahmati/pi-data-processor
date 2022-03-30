@@ -67,6 +67,13 @@ dotenv.config();
                 }
             } else {
                 return {
+                    fileName: '',
+                    hasAnyPiData: '',
+                    fullFileName: '',
+                    fileSizeBytes: '',
+                    durationSeconds: '',
+                    data: '',
+                    stats: '',
                     error: r.reason
                 }
             }
