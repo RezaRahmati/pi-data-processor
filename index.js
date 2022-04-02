@@ -27,6 +27,7 @@ dotenv.config();
 async function scanFolder(folder) {
     try {
         const delayMs = +process.env.DELAY;
+        const likelihood = +process.env.LIKELIHOOD;
         const start = new Date();
 
         console.log(`************ ${folder} ***************`);
@@ -58,7 +59,7 @@ async function scanFolder(folder) {
             formData.append('file', fs.createReadStream(file));
             formData.append('infoTypes', process.env.INFO_TYPES);
             formData.append('fullFileName', file);
-            formData.append('likelihood', 'VERY_LIKELY');
+            formData.append('likelihood', likelihood);
 
             promises.push(
                 fetch(process.env.API_URL, {
