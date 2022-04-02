@@ -9,20 +9,38 @@ import { globby } from 'globby';
 dotenv.config();
 
 (async () => {
+    const folder = process.env.FOLDER;
+    const subFolders = (process.env.SUB_FOLDERS || '').split(',');
 
+    for (let subFolder of subFolders) {
+        const finalPath = path.join(folder, subFolder).replace(/\\/g, '/');
+        try {
+            await scanFolder(finalPath);
+        }
+        catch (err) {
+            console.error(`Error processing ${subFolder}`, err);
+        }
+    }
+
+})();
+
+async function scanFolder(folder) {
     try {
-        const start = new Date();
-        const dir = process.env.FOLDER;
         const delayMs = +process.env.DELAY;
+        const start = new Date();
+
+        console.log(`************ ${folder} ***************`);
 
         // Get the files as an array
-        const files = (await globby([`${dir}/**/*`])).filter(f => !f.includes('cmor-result'));
+        const files = (await globby([`${folder}/**/*`])).filter(f => !f.includes('cmor-result'));
 
         const promises = [];
 
         let fileIndex = 0;
         let processedCount = 0;
         let filesCount = files.length;
+
+        console.log(`${filesCount} files found in ${folder}`);
 
         for (let file of files) {
 
@@ -138,24 +156,23 @@ dotenv.config();
         const dateTime = getDate();
 
         const csvData = await converter.json2csvAsync(data);
-        fs.writeFileSync(path.join(dir, `cmor-result-${dateTime}.csv`), csvData);
+        fs.writeFileSync(path.join(folder, `cmor-result-${dateTime}.csv`), csvData);
 
         const allSuccessfulFiles = data.map(d => d.fullFileName);
         const allUnsuccessfulFiles = files.filter(f => !allSuccessfulFiles.includes(f));
         if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(allUnsuccessfulFiles.map(f => ({ fullFileName: f })));
-            fs.writeFileSync(path.join(dir, `cmor-result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
+            fs.writeFileSync(path.join(folder, `cmor-result-missing-files-${dateTime}.csv`), allUnsuccessfulFilesCsv);
         }
 
         const end = new Date();
 
-        console.log(`Processing ${filesCount} files done in ${(end - start) / 1000}s`)
+        console.log(`Processing ${filesCount} files done in ${Math.floor((end - start) / 1000 / 60)} minutes`)
     }
     catch (e) {
         console.error("Whoops!", e);
     }
-
-})();
+}
 
 const getDate = () => {
     return new Date().toLocaleString().replace(/[T,]/gi, '').replace(/[\/: ]/gi, '-');
