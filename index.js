@@ -47,6 +47,7 @@ dotenv.config();
                     method: 'POST',
                     headers: {
                         "api-key": process.env.API_KEY,
+                        'Accept': 'application/json'
                     },
                     body: formData
                 })
@@ -56,42 +57,71 @@ dotenv.config();
                             try {
                                 return res.json();
                             } catch (err) {
-                                console.error(res);
-                                throw new Error(res)
+                                console.error('Error converting to json 1', res);
+                                throw new Error(res.text())
                             }
                         }
 
-                        return res.json();
+                        try {
+                            return res.json();
+                        }
+                        catch (err) {
+                            console.error('Error converting to json 2', res);
+                            throw new Error(res.text())
+                        }
                     })
                     .then((res) => {
                         if (res.fileName) {
                             console.log(`Processing ${res.fileName} done. ${processedCount} of ${filesCount}`);
                         } else {
-                            console.error(`Error Processing ${file}. ${processedCount} of ${filesCount}`, res);
+                            console.error(`Error Processing ${file}. ${processedCount} of ${filesCount}`, 'error:', res);
                         }
 
                         return res;
+                    })
+                    .catch(err => {
+                        console.error('Error', file, err);
                     })
             );
 
         }
 
         const responses = await Promise.allSettled(promises);
+
         const data = responses.map(r => {
             if (r.status === 'fulfilled') {
                 const value = r.value;
 
-                return {
-                    fileName: value.fileName || '',
-                    hasAnyPiData: value.stats && value.stats.length > 0,
-                    fullFileName: value.fullFileName || '',
-                    fileSizeBytes: value.fileSizeBytes || '',
-                    durationSeconds: value.durationSeconds || '',
-                    data: (value.data || []).map(d => `${d.infoType || ''}:${d.data || ''}`).join(`;`) || '',
-                    stats: (value.stats || []).map(d => `${d.infoType || ''}:${d.count || ''}`).join(`;`) || '',
-                    error: '',
+                if (value) {
+
+                    if (value.fileName) {
+                        return {
+                            fileName: value.fileName || '',
+                            hasAnyPiData: value.stats && value.stats.length > 0 || '',
+                            fullFileName: value.fullFileName || '',
+                            fileSizeBytes: value.fileSizeBytes || '',
+                            durationSeconds: value.durationSeconds || '',
+                            data: (value.data || []).map(d => `${d.infoType || ''}:${d.data || ''}`).join(`;`) || '',
+                            stats: (value.stats || []).map(d => `${d.infoType || ''}:${d.count || ''}`).join(`;`) || '',
+                            error: '',
+                        }
+                    }
+
+                    return {
+                        fileName: '',
+                        hasAnyPiData: '',
+                        fullFileName: '',
+                        fileSizeBytes: '',
+                        durationSeconds: '',
+                        data: '',
+                        stats: '',
+                        error: JSON.stringify(value)
+                    }
                 }
+
+                return null;
             } else {
+
                 return {
                     fileName: '',
                     hasAnyPiData: '',
@@ -103,14 +133,14 @@ dotenv.config();
                     error: r.reason
                 }
             }
-        });
+        }).filter(o => !!o);
 
         const dateTime = getDate();
 
         const csvData = await converter.json2csvAsync(data);
         fs.writeFileSync(path.join(dir, `cmor-result-${dateTime}.csv`), csvData);
 
-        const allSuccessfulFiles = data.map(d => d.fileName);
+        const allSuccessfulFiles = data.map(d => d.fullFileName);
         const allUnsuccessfulFiles = files.filter(f => !allSuccessfulFiles.includes(f));
         if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(allUnsuccessfulFiles.map(f => ({ fullFileName: f })));
