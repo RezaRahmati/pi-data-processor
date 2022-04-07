@@ -25,7 +25,7 @@ dotenv.config();
 async function scanFolder(folder) {
     try {
         const delayMs = +process.env.DELAY;
-        const likelihood = +process.env.LIKELIHOOD;
+        const likelihood = process.env.LIKELIHOOD;
         const start = new Date();
 
         console.log(`************ ${folder} ***************`);
@@ -104,6 +104,7 @@ async function scanFolder(folder) {
                     })
                     .catch((err) => {
                         console.error('Error', file, err);
+                        return null;
                     }),
             );
         }
@@ -123,36 +124,18 @@ async function scanFolder(folder) {
                                 fullFileName: value.fullFileName || '',
                                 fileSizeBytes: value.fileSizeBytes || '',
                                 durationSeconds: value.durationSeconds || '',
-                                dataVeryLikely:
-                                    (value.data || [])
-                                        .filter((d) => d.likelihood === 'VERY_LIKELY')
-                                        .map((d) => `${d.infoType || ''}:${d.data || ''}`)
-                                        .join(`;`)
-                                        .replace(/,/g, ' ') || '',
-                                dataLikely:
-                                    (value.data || [])
-                                        .filter((d) => d.likelihood === 'LIKELY')
-                                        .map((d) => `${d.infoType || ''}:${d.data || ''}`)
-                                        .join(`;`)
-                                        .replace(/,/g, ' ') || '',
-                                dataOther:
-                                    (value.data || [])
-                                        .filter(
-                                            (d) =>
-                                                d.likelihood !== 'VERY_LIKELY' &&
-                                                d.likelihood !== 'LIKELY',
-                                        )
-                                        .map(
-                                            (d) =>
-                                                `${d.infoType || ''}${!!d.likelihood ? `[${d.likelihood}]` : ''
-                                                }:${d.data || ''}`,
-                                        )
-                                        .join(`;`)
-                                        .replace(/,/g, ' ') || '',
                                 stats:
                                     (value.stats || [])
                                         .map((d) => `${d.infoType || ''}:${d.count || ''}`)
                                         .join(`;`) || '',
+                                dataVeryLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'VERY_LIKELY'), false),
+                                dataLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'LIKELY'), false),
+                                dataOther: dlpDataToString((value.data || [])
+                                    .filter(
+                                        (d) =>
+                                            d.likelihood !== 'VERY_LIKELY' &&
+                                            d.likelihood !== 'LIKELY',
+                                    ), true),
                                 error: '',
                             };
                         }
@@ -163,10 +146,10 @@ async function scanFolder(folder) {
                             fullFileName: '',
                             fileSizeBytes: '',
                             durationSeconds: '',
+                            stats: '',
                             dataVeryLikely: '',
                             dataLikely: '',
                             dataOther: '',
-                            stats: '',
                             error: JSON.stringify(value),
                         };
                     }
@@ -179,10 +162,10 @@ async function scanFolder(folder) {
                         fullFileName: '',
                         fileSizeBytes: '',
                         durationSeconds: '',
+                        stats: '',
                         dataVeryLikely: '',
                         dataLikely: '',
                         dataOther: '',
-                        stats: '',
                         error: r.reason,
                     };
                 }
@@ -230,3 +213,12 @@ const getDate = () => {
 const delay = (ms) => {
     return new Promise((resolve, reject) => setTimeout(resolve, ms));
 };
+
+const dlpDataToString = (data, includeLikelihood) => {
+    const likelihood = includeLikelihood ? `[${d.likelihood}]` : '';
+    return (data || [])
+        .map((d) => `${d.infoType || ''}${likelihood}:${d.data || ''}`)
+        .join(`;`)
+        .replace(/,/g, ' ')
+        .substring(0, 32000) || '';
+}
