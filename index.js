@@ -215,9 +215,9 @@ const delay = (ms) => {
 };
 
 const dlpDataToString = (data, includeLikelihood) => {
-    const likelihood = includeLikelihood ? `[${d.likelihood}]` : '';
+    const likelihood = (d) => includeLikelihood ? `[${d.likelihood}]` : '';
     return (data || [])
-        .map((d) => `${d.infoType || ''}${likelihood}:${d.data || ''}`)
+        .map((d) => `${d.infoType || ''}${likelihood(d)}:${d.data || ''}`)
         .join(`;`)
         .replace(/,/g, ' ')
         .substring(0, 32000) || '';
