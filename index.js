@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import dotenv from 'dotenv';
-import { default as fetch } from 'node-fetch';
+import { default as fetch, AbortError } from 'node-fetch';
 import { default as FormData } from 'form-data';
 import { default as converter } from 'json-2-csv';
 import { globby } from 'globby';
+import AbortController from "abort-controller"
 
 dotenv.config();
 
@@ -52,13 +53,18 @@ async function scanFolder(folder) {
                 continue;
             }
 
-            console.log(`Processing ${file} started. ${fileIndex} of ${filesCount}`);
+            console.log(`[${new Date().toISOString()}]: Processing ${file} started. ${fileIndex} of ${filesCount}`);
 
             const formData = new FormData();
             formData.append('file', fs.createReadStream(file));
             formData.append('infoTypes', process.env.INFO_TYPES);
             formData.append('fullFileName', file);
             formData.append('likelihood', likelihood);
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => {
+                controller.abort();
+            }, 10 * 60 * 1000); // 10 minutes
 
             promises.push(
                 fetch(process.env.API_URL, {
@@ -68,14 +74,16 @@ async function scanFolder(folder) {
                         Accept: 'application/json',
                     },
                     body: formData,
+                    signal: controller.signal
                 })
                     .then((res) => {
+                        clearTimeout(timeout);
                         processedCount += 1;
                         if (!res.ok) {
                             try {
                                 return res.json();
                             } catch (err) {
-                                console.error('Error converting to json 1', res);
+                                console.error(`[${new Date().toISOString()}]: Error converting to json 1`, res);
                                 throw new Error(res.text());
                             }
                         }
@@ -83,18 +91,18 @@ async function scanFolder(folder) {
                         try {
                             return res.json();
                         } catch (err) {
-                            console.error('Error converting to json 2', res);
+                            console.error(`[${new Date().toISOString()}]: Error converting to json 2`, res);
                             throw new Error(res.text());
                         }
                     })
                     .then((res) => {
                         if (res.fileName) {
                             console.log(
-                                `Processing ${res.fileName} done. ${processedCount} of ${filesCount}`,
+                                `[${new Date().toISOString()}]: Processing ${res.fileName} done. ${processedCount} of ${filesCount}`,
                             );
                         } else {
                             console.error(
-                                `Error Processing ${file}. ${processedCount} of ${filesCount}`,
+                                `[${new Date().toISOString()}]: Error Processing ${file}. ${processedCount} of ${filesCount}`,
                                 'error:',
                                 res,
                             );
@@ -103,9 +111,11 @@ async function scanFolder(folder) {
                         return res;
                     })
                     .catch((err) => {
-                        console.error('Error', file, err);
+                        console.error(`[${new Date().toISOString()}]: Error`, file, err);
+                        clearTimeout(timeout);
                         return null;
-                    }),
+                    })
+
             );
         }
 
