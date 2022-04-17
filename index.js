@@ -27,6 +27,8 @@ async function scanFolder(folder) {
     try {
         const delayMs = +process.env.DELAY;
         const likelihood = process.env.LIKELIHOOD;
+        const exclude_extensions = (process.env.EXCLUDE_EXT || '').toLowerCase().split(',').map(e => `.${e}`);
+
         const start = new Date();
 
         console.log(`************ ${folder} ***************`);
@@ -34,7 +36,7 @@ async function scanFolder(folder) {
         // Get the files as an array
         const files = (await globby([`${folder}/**/*`])).filter(
             (f) => !f.includes('cmor-result'),
-        );
+        ).filter(f => !exclude_extensions.includes(path.extname(f).toLowerCase()));
 
         const promises = [];
 
