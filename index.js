@@ -6,6 +6,8 @@ import { default as FormData } from 'form-data';
 import { default as converter } from 'json-2-csv';
 import { globby } from 'globby';
 import AbortController from "abort-controller"
+import csvWriter from "csv-write-stream";
+import pump from "pump";
 
 dotenv.config();
 
@@ -29,13 +31,19 @@ async function scanFolder(folder) {
         const likelihood = process.env.LIKELIHOOD;
         const exclude_extensions = (process.env.EXCLUDE_EXT || '').toLowerCase().split(',').map(e => `.${e}`);
 
-        const start = new Date();
+        const startTime = new Date();
+
+        const dateTime = getDate();
+
+        const processedFileName = path.join(folder, `cmor-processed.csv`);
+        const { append: processedAppend, end: processedEnd } = csvAppend(processedFileName);
+        const { append: resultAppend, end: resultEnd } = csvAppend(path.join(folder, `cmor-result-${dateTime}.csv`));
 
         console.log(`************ ${folder} ***************`);
 
         // Get the files as an array
         const files = (await globby([`${folder}/**/*`])).filter(
-            (f) => !f.includes('cmor-result'),
+            (f) => !f.includes('cmor-'),
         ).filter(f => !exclude_extensions.includes(path.extname(f).toLowerCase()));
 
         const promises = [];
@@ -52,6 +60,15 @@ async function scanFolder(folder) {
             fileIndex += 1;
 
             if (!fs.existsSync(file)) {
+                processedCount += 1;
+                continue;
+            }
+
+            const processedFiles = fs.readFileSync(processedFileName, { encoding: 'utf-8', flag: 'r' }).split('\n');
+
+            if (processedFiles.includes(file)) {
+                console.log(`Skipping ${file}`);
+                processedCount += 1;
                 continue;
             }
 
@@ -69,15 +86,18 @@ async function scanFolder(folder) {
             }, 10 * 60 * 1000); // 10 minutes
 
             promises.push(
-                fetch(process.env.API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'api-key': process.env.API_KEY,
-                        Accept: 'application/json',
-                    },
-                    body: formData,
-                    signal: controller.signal
-                })
+                fetch(
+                    process.env.API_URL,
+                    //'https://pidata.getsandbox.com:443',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'api-key': process.env.API_KEY,
+                            Accept: 'application/json',
+                        },
+                        body: formData,
+                        signal: controller.signal
+                    })
                     .then((res) => {
                         clearTimeout(timeout);
                         processedCount += 1;
@@ -97,7 +117,7 @@ async function scanFolder(folder) {
                             throw new Error(res.text());
                         }
                     })
-                    .then((res) => {
+                    .then(async (res) => {
                         if (res.fileName) {
                             console.log(
                                 `[${new Date().toISOString()}]: Processing ${res.fileName} done. ${processedCount} of ${filesCount}`,
@@ -108,6 +128,15 @@ async function scanFolder(folder) {
                                 'error:',
                                 res,
                             );
+                        }
+
+                        const data = responseToData(res);
+                        resultAppend(data);
+                        await resultEnd;
+
+                        if (res.fileName) {
+                            processedAppend({ fullFileName: res.fullFileName })
+                            await processedEnd;
                         }
 
                         return res;
@@ -121,93 +150,30 @@ async function scanFolder(folder) {
             );
         }
 
-        const responses = await Promise.allSettled(promises);
+        await Promise.allSettled(promises);
 
-        const data = responses
-            .map((r) => {
-                if (r.status === 'fulfilled') {
-                    const value = r.value;
+        const AllProcessedFiles = fs.readFileSync(processedFileName, { encoding: 'utf-8', flag: 'r' }).split('\n');
 
-                    if (value) {
-                        if (value.fileName) {
-                            return {
-                                fileName: value.fileName || '',
-                                hasAnyPiData: (value.stats && value.stats.length > 0) || '',
-                                fullFileName: value.fullFileName || '',
-                                fileSizeBytes: value.fileSizeBytes || '',
-                                durationSeconds: value.durationSeconds || '',
-                                stats:
-                                    (value.stats || [])
-                                        .map((d) => `${d.infoType || ''}:${d.count || ''}`)
-                                        .join(`;`) || '',
-                                dataVeryLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'VERY_LIKELY'), false),
-                                dataLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'LIKELY'), false),
-                                dataOther: dlpDataToString((value.data || [])
-                                    .filter(
-                                        (d) =>
-                                            d.likelihood !== 'VERY_LIKELY' &&
-                                            d.likelihood !== 'LIKELY',
-                                    ), true),
-                                error: '',
-                            };
-                        }
-
-                        return {
-                            fileName: '',
-                            hasAnyPiData: '',
-                            fullFileName: '',
-                            fileSizeBytes: '',
-                            durationSeconds: '',
-                            stats: '',
-                            dataVeryLikely: '',
-                            dataLikely: '',
-                            dataOther: '',
-                            error: JSON.stringify(value),
-                        };
-                    }
-
-                    return null;
-                } else {
-                    return {
-                        fileName: '',
-                        hasAnyPiData: '',
-                        fullFileName: '',
-                        fileSizeBytes: '',
-                        durationSeconds: '',
-                        stats: '',
-                        dataVeryLikely: '',
-                        dataLikely: '',
-                        dataOther: '',
-                        error: r.reason,
-                    };
-                }
-            })
-            .filter((o) => !!o);
-
-        const dateTime = getDate();
-
-        const csvData = await converter.json2csvAsync(data);
-        fs.writeFileSync(path.join(folder, `cmor-result-${dateTime}.csv`), csvData);
-
-        const allSuccessfulFiles = data.map((d) => d.fullFileName);
         const allUnsuccessfulFiles = files.filter(
-            (f) => !allSuccessfulFiles.includes(f),
+            (f) => !AllProcessedFiles.includes(f),
         );
+
+
         if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(
                 allUnsuccessfulFiles.map((f) => ({ fullFileName: f })),
             );
             fs.writeFileSync(
-                path.join(folder, `cmor-result-missing-files-${dateTime}.csv`),
+                path.join(folder, `cmor-missing-files-${dateTime}.csv`),
                 allUnsuccessfulFilesCsv,
             );
         }
 
-        const end = new Date();
+        const endTime = new Date();
 
         console.log(
             `Processing ${filesCount} files done in ${Math.floor(
-                (end - start) / 1000 / 60,
+                (endTime - startTime) / 1000 / 60,
             )} minutes`,
         );
     } catch (e) {
@@ -215,7 +181,7 @@ async function scanFolder(folder) {
     }
 }
 
-const getDate = () => {
+function getDate() {
     return new Date()
         .toLocaleString()
         .replace(/[T,]/gi, '')
@@ -234,3 +200,73 @@ const dlpDataToString = (data, includeLikelihood) => {
         .replace(/,/g, ' ')
         .substring(0, 32000) || '';
 }
+
+function responseToData(value) {
+    if (value.fileName) {
+        return {
+            fileName: value.fileName || '',
+            hasAnyPiData: (value.stats && value.stats.length > 0) || '',
+            fullFileName: value.fullFileName || '',
+            fileSizeBytes: value.fileSizeBytes || '',
+            durationSeconds: value.durationSeconds || '',
+            stats:
+                (value.stats || [])
+                    .map((d) => `${d.infoType || ''}:${d.count || ''}`)
+                    .join(`;`) || '',
+            dataVeryLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'VERY_LIKELY'), false),
+            dataLikely: dlpDataToString((value.data || []).filter((d) => d.likelihood === 'LIKELY'), false),
+            dataOther: dlpDataToString((value.data || [])
+                .filter(
+                    (d) =>
+                        d.likelihood !== 'VERY_LIKELY' &&
+                        d.likelihood !== 'LIKELY',
+                ), true),
+            error: '',
+        }
+    }
+    return {
+        fileName: '',
+        hasAnyPiData: '',
+        fullFileName: '',
+        fileSizeBytes: '',
+        durationSeconds: '',
+        stats: '',
+        dataVeryLikely: '',
+        dataLikely: '',
+        dataOther: '',
+        error: JSON.stringify(value),
+    }
+}
+
+
+function csvAppend(path) {
+    let appendToExisting = fs.existsSync(path);
+
+    const writeStream = fs.createWriteStream(path, {
+        flags: appendToExisting ? "a" : "w"
+    });
+    const writer = csvWriter({ sendHeaders: !appendToExisting });
+    writer.pipe(writeStream);
+    const append = (args) => {
+        if (Array.isArray(args)) {
+            for (let arg of args) {
+                writer.write(arg);
+            }
+        } else {
+            writer.write(args);
+        }
+        return writer;
+    };
+    const end = () => {
+        return new Promise(resolve => {
+            pump(writer, writeStream, err => {
+                resolve();
+            });
+            writer.end();
+        });
+    };
+    return {
+        append,
+        end
+    };
+};
