@@ -61,7 +61,7 @@ async function scanFolder(folder) {
 
             fileIndex += 1;
 
-            if (!fs.existsSync(file)) {
+            if (!fs.existsSync(file) || fs.statSync(file) > 18 * 1024 * 1024) {
                 processedCount += 1;
                 continue;
             }
