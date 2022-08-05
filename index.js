@@ -29,6 +29,8 @@ async function scanFolder(folder) {
     try {
         const delayMs = +process.env.DELAY;
         const likelihood = process.env.LIKELIHOOD;
+        const keywords = process.env.KEYWORDS;
+        const regex = [process.env.REGEX_0, process.env.REGEX_1, process.env.REGEX_2, process.env.REGEX_3, process.env.REGEX_4].filter(i => !!i);
         const exclude_extensions = (process.env.EXCLUDE_EXT || '').toLowerCase().split(',').map(e => `.${e}`);
 
         const startTime = new Date();
@@ -79,6 +81,16 @@ async function scanFolder(folder) {
             formData.append('infoTypes', process.env.INFO_TYPES);
             formData.append('fullFileName', file);
             formData.append('likelihood', likelihood);
+
+            if (!!keywords) {
+                formData.append('keywords', keywords);
+            }
+
+            if (regex && regex.length) {
+                regex.forEach(item => {
+                    formData.append('regex', item);
+                });
+            }
 
             const controller = new AbortController();
             const timeout = setTimeout(() => {
