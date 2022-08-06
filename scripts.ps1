@@ -24,3 +24,19 @@ Foreach -Begin {$i = $j = 0} -Process {
     }
     Move-Item $_ $dest
 }
+
+
+Get-ChildItem '.' -R -Filter *.zip | ForEach-Object {
+     Expand-Archive $_.FullName "$($_.DirectoryName)/$($_.Basename)" -Force
+     Remove-Item $_.FullName
+}
+
+
+
+ Get-ChildItem '.' -recurse | where-object {$_.length -gt 10*1024*1024} | Sort-Object length | ft name, length -auto
+
+ get-childitem '.' -Recurse -include *.exe  | foreach ($_) {remove-item $_.fullname}
+
+robocopy .\ c:\temp *.cs,*.html,*.js,*.config,*.sln,*.csproj, /s
+
+Get-ChildItem .\ -include bin,obj -Recurse | ForEach-Object ($_) { Remove-Item $_.FullName -Force -Recurse }
