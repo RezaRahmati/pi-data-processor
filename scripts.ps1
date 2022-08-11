@@ -40,3 +40,12 @@ Get-ChildItem '.' -R -Filter *.zip | ForEach-Object {
 robocopy .\ c:\temp *.cs,*.html,*.js,*.config,*.sln,*.csproj, /s
 
 Get-ChildItem .\ -include bin,obj -Recurse | ForEach-Object ($_) { Remove-Item $_.FullName -Force -Recurse }
+
+$sourceDir = 'c:\bnn'
+$targetDir = 'c:\bnn-result\'
+Get-ChildItem $sourceDir -filter "*cmor*" -recurse | `
+    foreach{
+        $targetFile = $targetDir + $_.FullName.SubString($sourceDir.Length);
+        New-Item -ItemType File -Path $targetFile -Force;
+        Copy-Item $_.FullName -destination $targetFile
+    }
