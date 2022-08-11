@@ -7,6 +7,14 @@ ForEach-Object{
    }
 }  | Where-Object{$_.FileCount -gt 100} | Sort-Object FileCount -Descending
 
+Get-ChildItem . -Directory|
+ForEach-Object{
+   [pscustomobject]@{
+       FullName  = $_.Name
+       FileCount = (Get-ChildItem $_.FullName -Recurse -File | Where-Object{$_.length > 100000} | Measure-Object).Count
+   }
+} | Sort-Object FileCount -Descending
+
 # move folder
 $folder=""
 $destination=""
@@ -49,3 +57,8 @@ Get-ChildItem $sourceDir -filter "*cmor*" -recurse | `
         New-Item -ItemType File -Path $targetFile -Force;
         Copy-Item $_.FullName -destination $targetFile
     }
+    
+ Unique files
+ (Get-ChildItem -Recurse -File| Get-FileHash | Sort-Object -Property hash | Select-Object hash -Unique ).Count
+ 
+ 
