@@ -138,7 +138,7 @@ async function scanFolder(folder) {
               } catch (err) {
                 console.error(
                   `[${new Date().toISOString()}]: Error converting to json 1`,
-                  res
+                  res.text()
                 );
                 throw new Error(res.text());
               }
@@ -149,7 +149,7 @@ async function scanFolder(folder) {
             } catch (err) {
               console.error(
                 `[${new Date().toISOString()}]: Error converting to json 2`,
-                res
+                res.text()
               );
               throw new Error(res.text());
             }
