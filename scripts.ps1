@@ -11,7 +11,7 @@ Get-ChildItem . -Directory|
 ForEach-Object{
    [pscustomobject]@{
        FullName  = $_.Name
-       FileCount = (Get-ChildItem $_.FullName -Recurse -File | Where-Object{$_.length > 100000} | Measure-Object).Count
+       FileCount = (Get-ChildItem $_.FullName -Recurse -File | Where-Object{$_.length -gt 100000} | Measure-Object).Count
    }
 } | Sort-Object FileCount -Descending
 
