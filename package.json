@@ -6,12 +6,16 @@
     "type": "module",
     "scripts": {
         "start": "node ./index.js",
-        "start:dev": "nodemon ./index.js"
+        "start:dev": "nodemon ./index.js",
+        "aggregate": "node ./aggregate.js",
+        "aggregate:dev": "nodemon ./aggregate.js"
     },
     "author": "Cmor Group",
     "license": "ISC",
     "dependencies": {
         "abort-controller": "^3.0.0",
+        "csv-parse": "^5.3.0",
+        "csv-stringify": "^6.2.0",
         "csv-write-stream": "^2.0.0",
         "dotenv": "^10.0.0",
         "form-data": "^4.0.0",
