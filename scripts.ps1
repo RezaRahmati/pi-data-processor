@@ -15,6 +15,14 @@ ForEach-Object{
    }
 } | Sort-Object FileCount -Descending
 
+Get-ChildItem . -Directory|
+ForEach-Object{
+   [pscustomobject]@{
+       FullName  = $_.Name
+       FileCount = (Get-ChildItem $_.FullName -Recurse -File -Exclude *.exe,*.dll,*.msi,*.mov,*.mp3,*.mp4,*.pst,*.avi,*.m4a,*.zoom,*.wav,*.lnk,*.ico | Where-Object{$_.length -gt 100000} | Measure-Object).Count
+   }
+} | Sort-Object FileCount -Descending
+
 # move folder
 $folder=""
 $destination=""
@@ -62,3 +70,6 @@ Get-ChildItem $sourceDir -filter "*cmor*" -recurse | `
  (Get-ChildItem -Recurse -File| Get-FileHash | Sort-Object -Property hash | Select-Object hash -Unique ).Count
  
  
+Clean up
+Get-ChildItem -recurse -filter __macosx | Remove-Item -Force -Confirm:$false
+Get-ChildItem -recurse -filter .DS_Store | Remove-Item -Force -Confirm:$false
