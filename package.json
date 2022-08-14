@@ -8,7 +8,9 @@
         "start": "node ./index.js",
         "start:dev": "nodemon ./index.js",
         "aggregate": "node ./aggregate.js",
-        "aggregate:dev": "nodemon ./aggregate.js"
+        "aggregate:dev": "nodemon ./aggregate.js",
+        "copy-missing": "node ./copy-missing.js",
+        "copy-missing:dev": "nodemon ./copy-missing.js"
     },
     "author": "Cmor Group",
     "license": "ISC",
