@@ -73,7 +73,7 @@ async function scanFolder(folder) {
         for (let file of files) {
             fileIndex += 1;
 
-            if (!fs.existsSync(file) || fs.statSync(file) > 10 * 1000 * 1000) {
+            if (!fs.existsSync(file) || fs.statSync(file) > 100 * 1000 * 1000) {
                 processedCount += 1;
                 continue;
             }
