@@ -7,8 +7,8 @@
     "scripts": {
         "start": "node ./index.js",
         "start:dev": "nodemon ./index.js",
-        "aggregate": "node ./aggregate.js",
-        "aggregate:dev": "nodemon ./aggregate.js",
+        "merge": "node ./merge.js",
+        "merge:dev": "nodemon ./merge.js",
         "copy-missing": "node ./copy-missing.js",
         "copy-missing:dev": "nodemon ./copy-missing.js"
     },
@@ -23,6 +23,7 @@
         "form-data": "^4.0.0",
         "globby": "^12.0.2",
         "json-2-csv": "^3.14.4",
+        "moment": "^2.29.4",
         "node-fetch": "^3.0.0",
         "pump": "^3.0.0"
     },

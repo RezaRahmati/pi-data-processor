@@ -8,6 +8,7 @@ import { globby } from 'globby';
 import AbortController from 'abort-controller';
 import csvWriter from 'csv-write-stream';
 import pump from 'pump';
+import moment from 'moment';
 
 dotenv.config();
 
@@ -220,10 +221,7 @@ async function scanFolder(folder) {
 }
 
 function getDate() {
-    return new Date()
-        .toLocaleString()
-        .replace(/[T,]/gi, '')
-        .replace(/[\/: ]/gi, '-');
+    return moment().format('YYYY-MM-DD-HH-mm');
 }
 
 const delay = (ms) => {
