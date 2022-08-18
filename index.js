@@ -9,6 +9,8 @@ import AbortController from 'abort-controller';
 import csvWriter from 'csv-write-stream';
 import pump from 'pump';
 import moment from 'moment';
+import sha256File from 'sha256-file';
+import JSONdb from 'simple-json-db';
 
 dotenv.config();
 
@@ -16,17 +18,29 @@ dotenv.config();
     const folder = process.env.FOLDER;
     const subFolders = (process.env.SUB_FOLDERS || '').split(',');
 
+    const hashFileName = path.join(folder, `cmor-hash.json`);
+    const hashDb = new JSONdb(hashFileName);
+    hashDb.set('dummy', true);
+    console.log(hashDb.JSON());
+
+
+    const processedFileName = path.join(folder, `cmor-processed.json`);
+    const processedDb = new JSONdb(processedFileName);
+    processedDb.set('dummy', true);
+    console.log(processedDb.JSON());
+
+
     for (let subFolder of subFolders) {
         const finalPath = path.join(folder, subFolder).replace(/\\/g, '/');
         try {
-            await scanFolder(finalPath);
+            await scanFolder(finalPath, hashDb, processedDb);
         } catch (err) {
             console.error(`Error processing ${subFolder}`, err);
         }
     }
 })();
 
-async function scanFolder(folder) {
+async function scanFolder(folder, hashDb, processedDb) {
     try {
         const delayMs = +process.env.DELAY;
         const likelihood = process.env.LIKELIHOOD;
@@ -47,12 +61,7 @@ async function scanFolder(folder) {
 
         const dateTime = getDate();
 
-        const processedFileName = path.join(folder, `cmor-processed.csv`);
-        const { append: processedAppend, end: processedEnd } =
-            csvAppend(processedFileName);
-        const { append: resultAppend, end: resultEnd } = csvAppend(
-            path.join(folder, `cmor-result-${dateTime}.csv`)
-        );
+        const { append: resultAppend, end: resultEnd } = csvAppend(path.join(folder, `cmor-result-${dateTime}.csv`));
 
         console.log(`************ ${folder} ***************`);
 
@@ -74,16 +83,37 @@ async function scanFolder(folder) {
         for (let file of files) {
             fileIndex += 1;
 
-            if (!fs.existsSync(file) || fs.statSync(file).size > 100 * 1000 * 1000) {
+            const fileSize = fs.statSync(file).size;
+            if (!fs.existsSync(file) || fileSize > 100 * 1000 * 1000) {
                 processedCount += 1;
                 continue;
             }
 
-            const processedFiles = fs
-                .readFileSync(processedFileName, { encoding: 'utf-8', flag: 'r' })
-                .split('\n');
+            const fileHash = calculateHash(file);
 
-            if (processedFiles.includes(file)) {
+            const hashKey = `${fileHash}-${fileSize}`;
+
+            if (hashDb.get(hashKey)) {
+                console.log(`Skipping Duplicate ${file}`);
+                promises.push(Promise.resolve({
+                    fileName: path.basename(file),
+                    hasAnyPiData: '',
+                    fullFileName: file,
+                    fileSizeBytes: fileSize,
+                    durationSeconds: 0,
+                    stats: '',
+                    dataVeryLikely: '',
+                    dataLikely: '',
+                    dataOther: '',
+                    error: 'Duplicate',
+                }));
+
+                continue;
+            }
+
+            hashDb.set(hashKey, true);
+
+            if (processedDb.has(file)) {
                 console.log(`Skipping ${file}`);
                 processedCount += 1;
                 continue;
@@ -174,13 +204,17 @@ async function scanFolder(folder) {
                         await resultEnd;
 
                         if (res.fileName) {
-                            processedAppend({ fullFileName: res.fullFileName });
-                            await processedEnd;
+                            processedDb.set(res.fullFileName, true);
+                        } else if (hashDb.has(hashKey)) {
+                            hashDb.delete(hashKey);
                         }
 
                         return res;
                     })
                     .catch((err) => {
+                        if (hashDb.has(hashKey)) {
+                            hashDb.delete(hashKey);
+                        }
                         console.error(`[${new Date().toISOString()}]: Error`, file, err);
                         clearTimeout(timeout);
                         return null;
@@ -190,15 +224,14 @@ async function scanFolder(folder) {
 
         await Promise.allSettled(promises);
 
-        const AllProcessedFiles = fs
-            .readFileSync(processedFileName, { encoding: 'utf-8', flag: 'r' })
-            .split('\n');
+        const AllProcessedFiles = Object.keys(processedDb.JSON());
 
         const allUnsuccessfulFiles = files.filter(
             (f) => !AllProcessedFiles.includes(f)
         );
 
         if (allUnsuccessfulFiles && allUnsuccessfulFiles.length) {
+
             const allUnsuccessfulFilesCsv = await converter.json2csvAsync(
                 allUnsuccessfulFiles.map((f) => ({ fullFileName: f }))
             );
@@ -312,4 +345,8 @@ function csvAppend(path) {
         append,
         end,
     };
+}
+
+function calculateHash(fileName) {
+    return sha256File(fileName);
 }

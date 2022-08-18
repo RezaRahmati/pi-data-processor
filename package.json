@@ -25,7 +25,9 @@
         "json-2-csv": "^3.14.4",
         "moment": "^2.29.4",
         "node-fetch": "^3.0.0",
-        "pump": "^3.0.0"
+        "pump": "^3.0.0",
+        "sha256-file": "^1.0.0",
+        "simple-json-db": "^2.0.0"
     },
     "devDependencies": {
         "nodemon": "^2.0.15"
