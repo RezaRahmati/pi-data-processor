@@ -20,7 +20,7 @@ dotenv.config();
 
     const hashFileName = path.join(folder, `cmor-hash.json`);
     const hashDb = new JSONdb(hashFileName);
-    hashDb.set('dummy', true);
+    hashDb.set('dummy', 'dummy');
 
     const processedFileName = path.join(folder, `cmor-processed.json`);
     const processedDb = new JSONdb(processedFileName);
@@ -89,20 +89,26 @@ async function scanFolder(folder, hashDb, processedDb) {
 
             const hashKey = `${fileHash}-${fileSize}`;
 
-            if (hashDb.get(hashKey)) {
+            const existingHash = hashDb.get(hashKey);
+            if (!!existingHash) {
                 console.log(`Skipping Duplicate ${file}`);
-                promises.push(Promise.resolve({
-                    fileName: path.basename(file),
-                    hasAnyPiData: '',
-                    fullFileName: file,
-                    fileSizeBytes: fileSize,
-                    durationSeconds: 0,
-                    stats: '',
-                    dataVeryLikely: '',
-                    dataLikely: '',
-                    dataOther: '',
-                    error: 'Duplicate',
-                }));
+                if (existingHash !== file) {
+                    resultAppend({
+                        fileName: path.basename(file),
+                        hasAnyPiData: 'DUP',
+                        fullFileName: file,
+                        fileSizeBytes: fileSize,
+                        durationSeconds: 0,
+                        stats: '',
+                        dataVeryLikely: '',
+                        dataLikely: '',
+                        dataOther: '',
+                        error: `Duplicate with ${existingHash}`,
+                    });
+                    await resultEnd;
+
+                    processedDb.set(file, true);
+                }
 
                 continue;
             }
@@ -198,7 +204,7 @@ async function scanFolder(folder, hashDb, processedDb) {
                         await resultEnd;
 
                         if (res.fileName) {
-                            hashDb.set(hashKey, true);
+                            hashDb.set(hashKey, res.fullFileName);
                             processedDb.set(res.fullFileName, true);
                         } else if (hashDb.has(hashKey)) {
                             hashDb.delete(hashKey);
