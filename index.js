@@ -107,8 +107,6 @@ async function scanFolder(folder, hashDb, processedDb) {
                 continue;
             }
 
-            hashDb.set(hashKey, true);
-
             if (processedDb.has(file)) {
                 console.log(`Skipping ${file}`);
                 processedCount += 1;
@@ -200,6 +198,7 @@ async function scanFolder(folder, hashDb, processedDb) {
                         await resultEnd;
 
                         if (res.fileName) {
+                            hashDb.set(hashKey, true);
                             processedDb.set(res.fullFileName, true);
                         } else if (hashDb.has(hashKey)) {
                             hashDb.delete(hashKey);
