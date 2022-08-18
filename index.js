@@ -21,14 +21,10 @@ dotenv.config();
     const hashFileName = path.join(folder, `cmor-hash.json`);
     const hashDb = new JSONdb(hashFileName);
     hashDb.set('dummy', true);
-    console.log(hashDb.JSON());
-
 
     const processedFileName = path.join(folder, `cmor-processed.json`);
     const processedDb = new JSONdb(processedFileName);
     processedDb.set('dummy', true);
-    console.log(processedDb.JSON());
-
 
     for (let subFolder of subFolders) {
         const finalPath = path.join(folder, subFolder).replace(/\\/g, '/');
